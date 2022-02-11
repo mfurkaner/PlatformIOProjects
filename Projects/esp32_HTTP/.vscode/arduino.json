@@ -1,0 +1,5 @@
+{
+    "configuration": "FlashFreq=40,UploadSpeed=921600,DebugLevel=none",
+    "board": "esp32:esp32:ttgo-lora32-v21new",
+    "port": "/dev/tty.wchusbserial53230229641"
+}
