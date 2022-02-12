@@ -1,9 +1,18 @@
 #include <Arduino.h>
-#include "ship.h"
+#ifndef SHIP
+    #include "ship.h"
+#endif
+#ifndef CONNECTION
+    #include "connection.h"
+#endif
+
+#define SCREEN
 
 class Screen{
 public:
-    virtual void Draw() = 0;
+    virtual bool Draw() = 0;
+    Screen(){}
+    virtual ~Screen(){}
 };
 
 
@@ -23,10 +32,10 @@ public:
     HomeSelect getState(){return select;}
     void ChangeState(){
         if (select == Join){ select = Create; }
-        else {select = Join; }
+        else if(select == Create) {select = Join; }
     }
 
-    void Draw(){
+    bool Draw(){
         OLED.clearBuffer();
         OLED.drawFrame(0,0,OLED.getWidth(),OLED.getHeight());
         OLED.setFont(title_font);
@@ -38,25 +47,39 @@ public:
         OLED.setCursor(30, 6.5*OLED.getFontAscent());
         OLED.print((select == Create ? pointer : "") + create);
         OLED.sendBuffer();
+        return false;
     }
 
 };
 
 class JoinScreen : Screen{
-    String select = "Select a network";
-
-    void Draw();
+    public:
+    bool Draw(){return false;}
 };
 
 class CreateScreen : Screen{
-    String created = "Created a game";
-    String waiting = "Waiting for a player";
-    String joined = "A player has joined";
-
-
-    void Draw();
+    public:
+    bool Draw(){
+        OLED.clearBuffer();
+        OLED.drawFrame(0,0,OLED.getWidth(),OLED.getHeight());
+        OLED.setFont(u8g2_font_profont12_tf);
+        OLED.setCursor(20, 3*OLED.getFontAscent());
+        OLED.print("Creating the");
+        OLED.setCursor(15, 5*OLED.getFontAscent());
+        OLED.print("game network...");
+        OLED.sendBuffer();
+        delay(1000);
+        return false;
+    }
 };
 
 class GameScreen : Screen{
-    void Draw();
+    public:
+    bool Draw(){
+        OLED.clearBuffer();
+        OLED.drawFrame(0,0,OLED.getWidth(),OLED.getHeight());
+        OLED.setFont(u8g2_font_profont12_tf);
+        GRID.Draw();
+        return true;
+    }
 };

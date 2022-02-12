@@ -2,11 +2,18 @@
 #include <WiFi.h>
 #include <U8g2lib.h>
 #include <string>
+
+
 #include "hash.h"
-#include "package.h"
+#ifndef PACKAGE
+    #include "package.h"
+#endif
+
 extern U8G2_SSD1306_128X64_NONAME_F_HW_I2C OLED;
+#define CONNECTION
 
 #define PORT 25
+#define WIFI_TIMEOUT 10000 //ms
 
 
 enum Connection{
@@ -57,27 +64,38 @@ public:
         {
         case _Client:
             print_clientWaitingConnection();
-            if( WiFi.status() != WL_CONNECTED){
-                WiFi.disconnect();                              // This seems to be crutial
-                WiFi.mode(WIFI_STA);
-                WiFi.config(clientIP, gatewayIP, subnet);      
-                WiFi.begin(ssid.c_str(), String( ssid_hash ).c_str() );   
-                delay(2000);
-                client.connect(gatewayIP, PORT);
+            if( WiFi.status() != WL_CONNECTED ){
+                if (!serverStarted){
+                    WiFi.disconnect();  
+                    WiFi.mode(WIFI_STA);
+                    WiFi.config(clientIP, gatewayIP, subnet);      
+                    WiFi.begin(ssid.c_str(), String( ssid_hash ).c_str()); 
+                    serverStarted = true;  
+                }            
+                else{
+                    WiFi.reconnect();
+                }           
+                WiFi.waitStatusBits(WL_CONNECTED, WIFI_TIMEOUT/4);
             }
-            else if( !client.connected()) client.connect(gatewayIP, PORT);
-            else { print_verifying(); verifyCommunication(); standing = Connected; }
+            else if( client.connect(gatewayIP, PORT, WIFI_TIMEOUT) ) { 
+                print_verifying(); 
+                verifyCommunication(); 
+                standing = Connected; 
+            }
             break;
         case _Gateway:
             print_gatewayWaitingConnection();
             if ( !serverStarted ){
+                WiFi.disconnect();
                 WiFi.mode(WIFI_AP);
                 WiFi.softAPConfig(gatewayIP, gatewayIP, subnet);      
                 WiFi.softAP(ssid.c_str(), String( ssid_hash ).c_str() );   
                 server = WiFiServer(PORT, 2);
                 server.setNoDelay(true);
+                delay(1000);
                 server.begin(PORT);
                 serverStarted = true;
+                delay(2000);
             }
             else if ( server.hasClient() ) { print_verifying(); client = server.available(); verifyCommunication(); standing = Connected; }
             break;
@@ -112,6 +130,7 @@ public:
         OLED.setCursor(15, 5*OLED.getFontAscent());
         OLED.print("Verifying connection");
         OLED.sendBuffer();
+        delay(500);
     }
 
     void read(int m){
@@ -197,4 +216,12 @@ public:
         package.send(client);
         while(handleIncoming() != R_Handshake);
     }
+    void waitForEnemySettings(){
+        while(handleIncoming() != R_SettingReady);
+    }
+
+    bool checkConnection(){
+        bool connectionFlag = ( connectionType == _Client ) ? WiFi.status() == WL_CONNECTED : server.hasClient() ;
+        return connectionFlag && client.connected();}
+    bool available(){return client.available();}
 };

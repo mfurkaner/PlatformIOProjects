@@ -1,6 +1,6 @@
 #include <Arduino.h>
 #include <WiFi.h>
-
+#define PACKAGE
 enum Response : uint8_t{
     R_Handshake, R_SettingReady, R_Check, R_Miss, R_Hit, R_Lost, R_Null
 };

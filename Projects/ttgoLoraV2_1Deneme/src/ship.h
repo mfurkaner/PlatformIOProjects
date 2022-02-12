@@ -1,4 +1,6 @@
 #include <U8g2lib.h>
+#define SHIP
+
 extern U8G2_SSD1306_128X64_NONAME_F_HW_I2C OLED;
 
 #define MiniShipSize 2
@@ -9,9 +11,11 @@ extern U8G2_SSD1306_128X64_NONAME_F_HW_I2C OLED;
 #define GRID_P_HEIGHT 10
 #define GRID_WIDTH 12
 #define GRID_HEIGHT 6
+#define GRID_WIDTH_OFFSET 4
+#define GRID_HEIGHT_OFFSET 2
 
 enum PartState{
-    Good, Damaged, Empty
+    Good, Damaged, Empty, Sunk
 };
 
 class GameGrid{
@@ -25,17 +29,17 @@ public:
         }
     }
     int getXFromIndex(const int x){
-        return 2 + x*GRID_P_WIDTH;
+        return GRID_WIDTH_OFFSET + x*GRID_P_WIDTH;
     }
 
     int getYFromIndex(const int y){
-        return 4 + y*GRID_P_HEIGHT;
+        return GRID_HEIGHT_OFFSET + y*GRID_P_HEIGHT;
     }
 
     void Draw(){
         for(int i = 0 ; i < GRID_WIDTH ; i++){
             for(int j = 0 ; j < GRID_HEIGHT ; j++){
-                OLED.drawFrame(i*GRID_P_WIDTH + 2, j*GRID_P_HEIGHT + 4, GRID_P_WIDTH, GRID_P_HEIGHT);
+                OLED.drawFrame(i*GRID_P_WIDTH + GRID_WIDTH_OFFSET, j*GRID_P_HEIGHT + GRID_HEIGHT_OFFSET, GRID_P_WIDTH, GRID_P_HEIGHT);
             }
         }
     }
@@ -47,8 +51,8 @@ public:
 
 struct Part{
     PartState state = Good;
-    unsigned int x;
-    unsigned int y;
+    uint8_t x;
+    uint8_t y;
     void Draw(){
         switch (state)
         {
@@ -59,7 +63,10 @@ struct Part{
             OLED.drawLine(GRID.getXFromIndex(x), GRID.getYFromIndex(y), GRID.getXFromIndex(x) + GRID_P_WIDTH, GRID.getYFromIndex(y) + GRID_P_HEIGHT);
             OLED.drawLine(GRID.getXFromIndex(x), GRID.getYFromIndex(y) + GRID_P_HEIGHT, GRID.getXFromIndex(x) + GRID_P_WIDTH, GRID.getYFromIndex(y));
             break;
-        default:
+        case Empty:
+            OLED.drawDisc(GRID.getXFromIndex(x) + GRID_P_WIDTH/2, GRID.getYFromIndex(y) + GRID_P_HEIGHT/2, GRID_P_HEIGHT/4);
+            break;
+        case Sunk:
             break;
         }
     }
@@ -70,10 +77,13 @@ enum Direction{
 };
 
 class Ship{
-    Part parts[];
+protected:
+    Part* parts = NULL;
+    PartState state = Good;
 public:
     Ship(int x, int y, Direction dir, int part_count)
     {
+        parts = new Part[part_count];
         for(int i = 0; i < part_count; i++){
             switch (dir)
             {
@@ -98,10 +108,14 @@ public:
             }
         }
     }
+    ~Ship(){delete[] parts;}
+    
     virtual void Draw() = 0;
-    virtual void takeDamage( int x, int y) = 0;
+    virtual bool takeDamage( int x, int y) = 0;
     virtual bool move(Direction dir) = 0;
+    virtual bool isHere(uint8_t x, uint8_t y) = 0;
 
+    PartState getState(){return state;}
     bool move(Direction dir, int size){
         // make sure no part is in the edge
         for(int i = 0; i < size ; i++){
@@ -153,34 +167,54 @@ public:
         }
         return true;
     }
-
-    void takeDamage(int x, int y, int size){
+    bool takeDamage(uint8_t x, uint8_t y, int size){
+        uint8_t damagedCount = 0;
         for(int i = 0; i < size; i++){
-            if ( parts[i].x == x && parts[i].y == y ){
+            if (parts[i].state == Damaged){
+                damagedCount++;
+            }
+            else if ( parts[i].x == x && parts[i].y == y ){
                 parts[i].state = Damaged;
+                if(damagedCount == size - 1){
+                    state = Sunk;
+                    for(int i = 0; i < size ; i++){
+                        parts[i].state = Damaged;
+                    }
+                }
+                return true;
             }
         }
+        return false;
     }
 
-    void Draw(int size){
-        for(int i = 0; i < size ; i++){
+    bool isHere(uint8_t x, uint8_t y, uint8_t size){
+        for(uint8_t i = 0; i < size ; i++){
+            if( parts[i].x == x && parts[i].y == y ){
+                return true;
+            }
+        }
+        return false;
+    }
+
+    void Draw(uint8_t size){
+        for(uint8_t i = 0; i < size ; i++){
             parts[i].Draw();
         }
     }
 };
 
 class MiniShip : Ship{
-    Part parts[MiniShipSize];
-
 public:
     MiniShip(int x, int y, Direction dir) : Ship(x, y, dir, MiniShipSize){}
 
 
     void Draw() { ((Ship*)this)->Draw(MiniShipSize); }
 
-    void takeDamage(int x, int y) { ((Ship*)this)->takeDamage(x, y, MiniShipSize); }
+    bool takeDamage(int x, int y) { return ((Ship*)this)->takeDamage(x, y, MiniShipSize); }
 
     bool move(Direction dir) { return ((Ship*)this)->move(dir, MiniShipSize);}
+
+    bool isHere(uint8_t x, uint8_t y) { return ((Ship*)this)->isHere(x, y, MiniShipSize);}
 };
 
 class MidShip : Ship{
@@ -189,9 +223,11 @@ public:
     MidShip(int x, int y, Direction dir) : Ship(x, y, dir, MidShipSize){}
     void Draw() { ((Ship*)this)->Draw(MidShipSize); }
 
-    void takeDamage(int x, int y) { ((Ship*)this)->takeDamage(x, y, MidShipSize); }
+    bool takeDamage(int x, int y) { return ((Ship*)this)->takeDamage(x, y, MidShipSize); }
 
     bool move(Direction dir) { return ((Ship*)this)->move(dir, MidShipSize);}
+
+    bool isHere(uint8_t x, uint8_t y) { return ((Ship*)this)->isHere(x, y, MidShipSize);}
 };
 
 class BigShip : Ship{
@@ -201,7 +237,9 @@ public:
 
     void Draw() { ((Ship*)this)->Draw(BigShipSize); }
 
-    void takeDamage(int x, int y) { ((Ship*)this)->takeDamage(x, y, BigShipSize); }
+    bool takeDamage(int x, int y) { return ((Ship*)this)->takeDamage(x, y, BigShipSize); }
 
     bool move(Direction dir) { return ((Ship*)this)->move(dir, BigShipSize);}
+
+    bool isHere(uint8_t x, uint8_t y) { return ((Ship*)this)->isHere(x, y, BigShipSize);}
 };
