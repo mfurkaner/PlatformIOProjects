@@ -16,10 +16,12 @@ class Ship{
 protected:
     Part* parts = NULL;
     PartState state = Good;
+    Direction direction;
 public:
     Ship(){}
     Ship(int x, int y, Direction dir, int part_count)
-    {
+    {   
+        direction = dir;
         parts = new Part[part_count];
         for(int i = 0; i < part_count; i++){
             switch (dir)
@@ -65,40 +67,41 @@ public:
     }
 
     bool isAtEdge(){
-        
+        for (uint8_t i ; i < getSize() ; i++){
+            if( parts[i].x = 0 || parts[i].y == 0 || parts[i].x == GRID_WIDTH -1 ||parts[i].y == GRID_HEIGHT - 1){
+                return true;
+            }
+        }
+        return false;
     }
 
-    PartState getState(){return state;}
-    
-    bool move(Direction dir, int size){
-        // make sure no part is in the edge
-        for(int i = 0; i < size ; i++){
+    bool isAtEdgeOnDirection(Direction dir){
+        for (uint8_t i ; i < getSize() ; i++){
             switch (dir)
             {
             case pX:
-                if (parts[i].x + 1 == GRID_WIDTH){
-                    return false;
-                }
+                if( parts[i].x == GRID_WIDTH - 1) return true;
                 break;
             case pY:
-                if (parts[i].y + 1 == GRID_HEIGHT){
-                    return false;
-                }
+                if( parts[i].y == GRID_HEIGHT - 1) return true;
                 break;
             case nX:
-                if (parts[i].x == 0){
-                    return false;
-                }
+                if( parts[i].x == 0) return true;
                 break;
             case nY:
-                if (parts[i].y == 0){
-                    return false;
-                }
-                break;
-            default:
+                if( parts[i].y == 0) return true;
                 break;
             }
         }
+        return false;
+    }
+
+
+    PartState getState(){return state;}
+
+    bool move(Direction dir, int size){
+        // make sure no part is in the edge
+        if ( isAtEdgeOnDirection(dir) ) return false;
         // move the parts
         for(int i = 0; i < size ; i++){
             switch (dir)
@@ -121,6 +124,7 @@ public:
         }
         return true;
     }
+
     bool takeDamage(uint8_t x, uint8_t y, int size){
         uint8_t damagedCount = 0;
         for(int i = 0; i < size; i++){
