@@ -80,6 +80,19 @@ class Game{
         return false;
     }
 
+    bool isShot(uint8_t x, uint8_t y){
+        uint8_t size = damagedEnemyParts.size() + emptyTiles.size();
+        for(uint8_t i = 0; i < size ; i++ ){
+            if( i < damagedEnemyParts.size() && damagedEnemyParts[i].x == x && damagedEnemyParts[i].y == y){
+                return true;
+            }
+            else if ( i >= damagedEnemyParts.size() && emptyTiles[i - damagedEnemyParts.size()].x == x && emptyTiles[i - damagedEnemyParts.size()].y == y ){
+                return true;
+            }
+        }
+        return false;
+    }
+
     bool didLose(){
         for(uint8_t i = 0; i < playerShips.size(); i++){
             if( playerShips[i]->getState() == Good ) return false;
@@ -110,58 +123,65 @@ class Game{
 
     void Draw(){
         if ( screen->Draw() ){
-            if(state == EnemyTurn || state == Setting){
+            if( state == Setting ){
+                // draw set your ship position
+                drawPlayerShips();
+            }
+            else if (state == EnemyTurn ){
+                // draw enemy turn
                 drawPlayerShips();
             }
             else if(state == PlayerTurn){
+                // draw your turn
                 drawEnemyShips();
             }
             OLED.sendBuffer();
         }
     }
 
-    bool detectCollision(uint8_t x, uint8_t y, uint8_t size, Direction dir){
-        if ( dir == pX || dir == nX ){
-            x *= (dir == pX) ? 1 : -1 ;
-        }
-        else {
-            y *= (dir == pY) ? 1 : -1 ;
-            
-        }
-        for(uint8_t i = 0 ; i < playerShips.size() ;  i++){
-            for( uint8_t j = 0 ; j < size; j++){
-                if (playerShips[i]->isHere(x, y)){
-                    return true;
-                }
+    bool detectCollision(Ship& newShip){
+        for(int i = 0; i < playerShips.size() ; i++ ){
+            if ( newShip.doCollide(*playerShips[i]) ){
+                return true;
             }
         }
         return false;
     }
 
     void createShip(){
+        if (playerShips.size() == MAX_SHIP_COUNT){
+            return;
+        }
         uint8_t x;
         uint8_t y;
+        Ship* newShip = NULL;
         if (playerShips.size() < MAX_SHIP_COUNT/3){
             do{
+                delete(newShip);
                 x = random(0, 12);
                 y = random(0, 3);
-            }while ( detectCollision(x, y , BigShipSize, pY) );
-            playerShips.push_back((Ship*)new BigShip(x, y, pY));
+                newShip = (Ship*)new BigShip(x, y, pY);
+            }while ( detectCollision(*newShip) );
+            playerShips.push_back(newShip);
         }
         else if (playerShips.size() < MAX_SHIP_COUNT*2/3){
             do{
+                delete(newShip);
                 x = random(0, 10);
                 y = random(0, 6);
-            }while ( detectCollision(x, y , MidShipSize, pX) );
-            playerShips.push_back((Ship*)new MidShip(x, y, pX));
+                newShip = (Ship*)new MidShip(x, y, pX);
+            }while ( detectCollision(*newShip) );
+            
         }
         else if (playerShips.size() < MAX_SHIP_COUNT){
-            do{
+            do{ 
+                delete(newShip);
                 x = random(0, 11);
                 y = random(0, 6);
-            }while ( detectCollision(x, y , MiniShipSize, pX) );
-            playerShips.push_back((Ship*)new MiniShip(random(0,10),random(0,6), pX));
+                newShip = (Ship*)new MiniShip(x, y, pX);
+            }while ( detectCollision(*newShip) );
         }
+        playerShips.push_back(newShip);
     }
 
     void handleInput(){
@@ -330,8 +350,11 @@ class Game{
                 break;
         }
     }
+
 public:
-    Game(){pinMode(LED_BUILTIN, OUTPUT);}
+    Game(){
+        pinMode(LED_BUILTIN, OUTPUT);
+    }
 
     void Run(){
         Draw();
@@ -353,4 +376,5 @@ public:
     void testLoopGateway();
 
     void setState(GameState state){this->state = state;}
+    GameState getState(){return state;}
 };

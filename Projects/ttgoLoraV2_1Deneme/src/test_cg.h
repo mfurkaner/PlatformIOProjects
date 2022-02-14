@@ -98,7 +98,7 @@ void Game::testSetGateway(){
         delay(1000);
     }
     click = true;
-    Run();                          // click
+    Run();                          // click - create a game
     delay(1000);
 
     for(int i = 0; i < 6 ; i++){    // create 6 ships
@@ -110,8 +110,14 @@ void Game::testSetGateway(){
 }
 
 void Game::testLoopGateway(){
-    if( state == PlayerTurn){
-        setCursor( random(0, 12), random(0,6) );
+    if( state == PlayerTurn){       // when players turn, shoot at random
+        uint8_t x;
+        uint8_t y;
+        do{
+            x = random(0, 12);
+            y = random(0, 6);
+        }while( isShot(x, y) );
+        setCursor( x, y );
         click = true;
     }
     Run();     
@@ -129,7 +135,7 @@ void Game::testSetClient(){
         delay(1000);
     }
     click = true;
-    Run();                          // click
+    Run();                          // click -join a game
     delay(1000);
 
     for(int i = 0; i < 6 ; i++){    // create 6 ships
@@ -141,10 +147,10 @@ void Game::testSetClient(){
 }
 
 void Game::testLoopClient(){
-    if( state == PlayerTurn ){
+    if( state == PlayerTurn ){      // when players turn, shoot at random
         setCursor( random(0, 12), random(0,6) );
         click = true;
     }
-    Run();     
+    Run();                          
     delay(2000);
 }
