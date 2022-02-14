@@ -96,6 +96,14 @@ public:
         return false;
     }
 
+    bool isHere(uint8_t x, uint8_t y, uint8_t size){
+        for(uint8_t i = 0; i < size ; i++){
+            if( parts[i].x == x && parts[i].y == y ){
+                return true;
+            }
+        }
+        return false;
+    }
 
     PartState getState(){return state;}
 
@@ -139,15 +147,6 @@ public:
                         parts[i].state = Damaged;
                     }
                 }
-                return true;
-            }
-        }
-        return false;
-    }
-
-    bool isHere(uint8_t x, uint8_t y, uint8_t size){
-        for(uint8_t i = 0; i < size ; i++){
-            if( parts[i].x == x && parts[i].y == y ){
                 return true;
             }
         }

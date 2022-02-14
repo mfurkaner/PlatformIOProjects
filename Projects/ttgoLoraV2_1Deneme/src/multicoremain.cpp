@@ -1,8 +1,6 @@
+
 /*
-#include <Arduino.h>
-#include <U8g2lib.h>
-#include "screen.h"
-#include "connection.h"*/
+
 #include "test_cg.h"
 
 #define GATEWAY 0
@@ -52,3 +50,5 @@ void GameTaskRun(void* gamePtr){
     #endif
   }while( game->getState() != Win && game->getState() != Lost );
 }
+
+*/
